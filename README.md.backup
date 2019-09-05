@@ -1,0 +1,16 @@
+# warrion08_microservices
+warrion08 microservices repository
+
+## **Оглавление:**
+- ### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
+
+
+#### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
+
+##### Установка Docker
+
+Установка Docker проводим по инструкции [отсюда](https://docs.docker.com/install/linux/docker-ce/ubuntu/)
+Для настройки запуска из под существующего пользователя[инструкция](https://docs.docker.com/install/linux/linux-postinstall/)
+
+- [ ] 
+

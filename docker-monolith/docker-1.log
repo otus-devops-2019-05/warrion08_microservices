@@ -1,0 +1,7 @@
+REPOSITORY                  TAG                 IMAGE ID            CREATED             SIZE
+warrion08/ubuntu-tmp-file   latest              c9e3875be6e7        3 minutes ago       120MB
+ubuntu                      16.04               5e13f8dd4c1a        5 weeks ago         120MB
+hello-world                 latest              fce289e99eb9        8 months ago        1.84kB
+
+Docker-образ состоит из read-only слоев, где каждый слой добавляет отличия от предыдущего слоя.
+Контейнер запускается из образа с новым слоем, доступным для записи. Здесь же инициализируются различные параметры: сетевые порты, идентификаторы и лимиты ресурсов.
