@@ -3,6 +3,7 @@ warrion08 microservices repository
 
 ## **Оглавление:**
 - ### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
+- ### Docker-образы. Микросервисы (№ДЗ №13)
 
 
 #### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
@@ -35,7 +36,13 @@ docker rmi <image_id> - удаление образа
 
 Docker-machine - это встроенный в докер механизм для создания хостов и установки на них docker engine (server).
 
-Команда создания - docker-machine create <имя>. Имен может быть много, переключение между ними через eval $(docker-machine env <имя>). Переключение на локальный докер - eval $(docker-machine env --unset). Удаление - docker-machine rm <имя>. docker-machine создает хост для докер демона со указываемым образом в --googlemachine-image. Образы которые используются для построения докер контейнеров к этому никак не относятся. Все докер команды, которые запускаются в той же консоли после eval $(docker-machine env <имя>) работают с удаленным докер демоном в GCP.
+Команда создания - docker-machine create <имя>.
+Имен может быть много, переключение между ними через eval $(docker-machine env <имя>).
+Переключение на локальный докер - eval $(docker-machine env --unset).
+Удаление - docker-machine rm <имя>.
+docker-machine создает хост для докер демона с указываемым образом в --googlemachine-image.
+Образы которые используются для построения докер контейнеров к этому никак не относятся.
+Все докер команды, которые запускаются в той же консоли после eval $(docker-machine env <имя>) работают с удаленным докер демоном в GCP.
 
 ```
 Dockerfile-файл содержащий описание нашего докер образа. Dockerfile всегда должен начинаться с инструкции FROM (единственная инструкция, которая может быть указана до FROM - это ARG)
@@ -56,4 +63,46 @@ docker exec -it reddit bash - войти в контейнер
 docker start reddit - запуск контейнера
 docker stop reddit && docker rm reddit - остановка и удаление контейнера
 docker inspect <your-login>/otus-reddit:1.0 - просмотр инфу о образе
+```
+### Docker-образы. Микросервисы (№ДЗ №13)
+
+#### Сборка и запуск приложений в контейнерах
+Скачаем исходные коды приложения и положим их в корень нашего репозитория в папку src. Таким образом у нас получится структура:
+
+- src/post-py
+- src/comment
+- src/ui
+
+Каждая из этих директорий является сервисом и будет превращена в контейнер, поэтому напишем докерфайлы к каждому сервису.
+
+Подключимся к хосту, скачаем последний образ монги и выполним команды сборки образов:
+```
+eval $(docker-machine env docker-host)
+docker pull mongo:latest
+docker build -t <your-dockerhub-login>/post:1.0 ./post-py
+docker build -t <your-dockerhub-login>/comment:1.0 ./comment
+docker build -t <your-dockerhub-login>/ui:1.0 ./ui
+```
+Создадим сеть и запустим созданные контейнеры:
+```
+docker network create reddit
+docker run -d --network=reddit --network-alias=post_db --network-alias=comment_db mongo:latest
+docker run -d --network=reddit --network-alias=post warrion08/post:1.0
+docker run -d --network=reddit --network-alias=comment warrion08/comment:1.0
+docker run -d --network=reddit -p 9292:9292 warrion08/ui:1.0
+```
+Проверка: http://104.155.3.117:9292/
+
+#### Подключение volume к контейнеру
+
+Создаем Volume:
+`docker volume create reddit_db`
+
+Убьем старые контейнеры и запустим новые, при этом подключив к контейнеру с базой созданный volume. Таким образом, база будет сохраняться на volume и данные не пропадут со смертью контейнера
+```
+docker kill $(docker ps -q)
+docker run -d --network=reddit --network-alias=post_db --network-alias=comment_db -v reddit_db:/data/db mongo:latest
+docker run -d --network=reddit --network-alias=post ssjotus/post:1.0
+docker run -d --network=reddit --network-alias=comment sjotus/comment:1.0
+docker run -d --network=reddit -p 9292:9292 sjotus/ui:2.0
 ```
