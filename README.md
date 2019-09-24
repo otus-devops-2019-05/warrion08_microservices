@@ -5,6 +5,7 @@ warrion08 microservices repository
 - ### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
 - ### Docker-образы. Микросервисы (№ДЗ №13)
 - ### Docker.Сети. Docker-Comprose (#ДЗ №14)
+- ### Устройство Gitlab CI. Построение процесса непрерывной поставки (#ДЗ №15)
 
 
 #### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
@@ -200,3 +201,22 @@ Stop compose
 docker-compose -p <БазовоеИмяПроекта> down
 Либо задав переменную окружения COMPOSE_PROJECT_NAME
 ```
+#### Устройство Gitlab CI. Построение процесса непрерывной поставки (#ДЗ №15)
+
+##### Инсталляция Gitlab CI
+
+Инсталляцию виртуальной машины осуществим через Docker-machine
+```
+docker-machine create --driver google \
+ --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts \
+ --google-machine-type n1-standard-1 \
+ --google-zone europe-west1-b \
+ --google-disk-size 60 \
+ --gitlab-ci
+```
+С помощью команды `docker-machine ssh gitlab-ci` подключимся по ssh в созданную VM
+Доставим в VM docker-compose `sudo apt-get install docker-compose`
+Создадим папки и файл docker-compose.yml `sudo mkdir -p /srv/gitlab/config /srv/gitlab/data /srv/gitlab/logs && cd /srv/gitlab/ && sudo touch docker-compose.yml`
+Правим файл docker-compose.yml и вносим в него конфу с изменением на наш внешний IP
+Собираем контейнер `docker-compose up -d`
+Проверяем: http://104.155.3.117
