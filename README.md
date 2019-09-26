@@ -5,6 +5,7 @@ warrion08 microservices repository
 - ### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
 - ### Docker-образы. Микросервисы (№ДЗ №13)
 - ### Docker.Сети. Docker-Comprose (#ДЗ №14)
+- ### Устройство Gitlab CI. Построение процесса непрерывной поставки (#ДЗ №15)
 
 
 #### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
@@ -199,4 +200,118 @@ docker-compose -p <БазовоеИмяПроекта> up
 Stop compose
 docker-compose -p <БазовоеИмяПроекта> down
 Либо задав переменную окружения COMPOSE_PROJECT_NAME
+```
+#### Устройство Gitlab CI. Построение процесса непрерывной поставки (#ДЗ №15)
+
+##### Инсталляция Gitlab CI
+
+Инсталляцию виртуальной машины осуществим через Docker-machine
+```
+docker-machine create --driver google \
+ --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts \
+ --google-machine-type n1-standard-1 \
+ --google-zone europe-west1-b \
+ --google-disk-size 60 \
+ --gitlab-ci
+```
+С помощью команды `docker-machine ssh gitlab-ci` подключимся по ssh в созданную VM
+Доставим в VM docker-compose `sudo apt-get install docker-compose`
+Создадим папки и файл docker-compose.yml `sudo mkdir -p /srv/gitlab/config /srv/gitlab/data /srv/gitlab/logs && cd /srv/gitlab/ && sudo touch docker-compose.yml`
+Правим файл docker-compose.yml и вносим в него конфу с изменением на наш внешний IP
+Собираем контейнер `docker-compose up -d`
+Проверяем: http://104.155.3.117
+
+##### Настройка Gitlab
+
+Теперь откроем в браузере http://104.155.3.117, гитлаб предложит изменить нам пароль от встроенного пользователя root. Далее, залогинимся и перейдем в глобальные настройки. Там выбираем settings -> Sign-up restrictions и снимаем галочку с sign-up enabled.
+
+Cоздадим группу homework, а внутри неё создадим репозиторий example.
+
+Добавим наш созданный репозиторий в remotes нашего репозитория с микросервисами и сделаем пуш:
+```
+git checkout -b gitlab-ci-1
+git remote add gitlab http://104.155.3.117/homework/example.git
+git push gitlab gitlab-ci-1
+```
+###### Регистрируем и запускаем Runner
+
+На GCE хосте выполняем
+```
+$ docker run -d --name gitlab-runner --restart always \
+-v /srv/gitlab-runner/config:/etc/gitlab-runner \
+-v /var/run/docker.sock:/var/run/docker.sock \
+gitlab/gitlab-runner:latest
+```
+
+###### Регистрируем Runner
+
+`$ docker exec -it gitlab-runner gitlab-runner register --run-untagged --locked=false`
+
+Добавим исходный код reddit в репозиторий
+```
+$ git clone https://github.com/express42/reddit.git && rm -rf ./reddit/.git
+$ git add reddit/
+$ git commit -m “Add reddit app”
+$ git push gitlab gitlab-ci-1
+```
+
+Меняем описание пайплайна в .gitlab-ci.yml для тестирования приложения
+
+Добавляем файл теста simpletest.rb
+
+Добавляем библиотеку rack-test в reddit/Gemfile
+
+###### Разделение на окружения
+Изменяем .gitlab-ci.yml для dev окружения
+```
+deploy_dev_job:
+  stage: review
+  script:
+    - echo 'Deploy'
+  environment:
+    name: dev
+    url: http://dev.example.com
+```
+Изменяем .gitlab-ci.yml для staging и production окружений
+```
+staging:
+  stage: stage
+  when: manual
+  only:
+    - /^\d+\.\d+\.\d+/ 
+  script:
+    - echo 'Deploy'
+  environment:
+    name: stage
+    url: https://beta.example.com
+
+production:
+  stage: production
+  when: manual
+  only:
+    - /^\d+\.\d+\.\d+/ 
+  script:
+    - echo 'Deploy'
+  environment:
+    name: production
+    url: https://example.com
+Изменение, помеченное тэгом в git запустит полный пайплайн
+```
+```
+$ git commit -a -m ‘#4 add logout button to profile page’
+$ git tag 2.4.10
+$ git push gitlab gitlab-ci-1 --tags
+```
+Динамическое окружение задано при помощи переменных в .gitlab-ci.yml. На каждую ветку в git отличную от master Gitlab CI будет определять новое окружение.
+```
+branch review:
+ stage: review
+ script: echo "Deploy to $CI_ENVIRONMENT_SLUG"
+ environment:
+ name: branch/$CI_COMMIT_REF_NAME
+ url: http://$CI_ENVIRONMENT_SLUG.example.com
+ only:
+ - branches
+ except:
+ - master
 ```
