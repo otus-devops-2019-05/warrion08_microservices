@@ -6,6 +6,7 @@ warrion08 microservices repository
 - ### Docker-образы. Микросервисы (№ДЗ №13)
 - ### Docker.Сети. Docker-Comprose (#ДЗ №14)
 - ### Устройство Gitlab CI. Построение процесса непрерывной поставки (#ДЗ №15)
+- ### Введение в мониторинг. Системы мониторинга (#ДЗ №16)
 
 
 #### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
@@ -315,3 +316,77 @@ branch review:
  except:
  - master
 ```
+#### Введение в мониторинг. Системы мониторинга (#ДЗ №16)
+
+##### Запуск prometheus в контейнере
+Перед запуском prometheus нам нужно подготовить окружение. 
+Необходимо добавить правила фаервола в GCP:
+```
+gcloud compute firewall-rules create prometheus-default --allow tcp:9090
+gcloud compute firewall-rules create puma-default --allow tcp:9292
+```
+Cоздаем ВМ с докером через docker-machine:
+
+`export GOOGLE_PROJECT=docker-251308`
+```
+#create docker host
+docker-machine create --driver google \
+    --google-machine-image https://www.googleapis.com/compute/v1/projects/ubuntu-os-cloud/global/images/family/ubuntu-1604-lts \
+    --google-machine-type n1-standard-1 \
+    --google-zone europe-west1-b \
+    docker-host
+```
+Подключаемся к удаленному хосту через докер-машин:
+`eval $(docker-machine env docker-host)`
+
+Запустим прометеус в контейнере. Будем использовать уже готовый образ с докер-хаба
+
+`docker run --rm -p 9090:9090 -d --name prometheus  prom/prometheus`
+
+Посмотреть web морду прометеуса можно по адресу: `http://104.199.66.231:9090`
+
+Тормозим контейнер:
+`docker stop prometheus`
+
+##### Сборка собственного образа prometheus
+Вся конфигурация Prometheus происходит через файлы конфигурации и опции командной строки.
+В директории monitoring/prometheus создаем файл prometheus.yml
+Создадим внутри директории monitoring диреткорию prometheus, внутри которой создадим Dockerfile
+```
+FROM prom/prometheus:v2.1.0
+ADD prometheus.yml /etc/prometheus/
+```
+##### Оркестрация через docker-compose и сбор метрик
+У нас уже есть докер-композ файл для поднятия наших сервисов, поэтому нам необходимо подключить туда поднятие прометеуса.
+Но для начала пересоберем все образы наших сервисов через скрипт docker_build.sh, который находится в директории каждого сервиса в каталоге src.
+Скрипт для сборки всего из корня репозтория:
+```
+for i in ui post-py comment; do cd src/$i; bash
+docker_build.sh; cd -; done
+```
+После `$ docker-compose up -d`
+Должны подняться контейнеры с сервисами и прометеус в котором можно посмотреть различные метрики по нашим сервисам. 
+Проверим, что для сервиса базы данных установленны все алиасы (необходимо, что бы другие сервисы могли обращаться к сервису базы данных)
+Теперь мы можем подключиться к прометеусу и посмотреть метрики. Зайдем по адресу http://<docker-host-ip>:9090 посмотрим на метрики `ui_healht, ui_health_comment_availability и ui_health_post_availability` убедимся что прометеус собирает метрики с наших сервисов.
+
+##### Использование exporters
+Экспортер-вспомогательный агент для сбора метрик. В ситуациях, когда мы не можем реализовать отдачу метрик Prometheus в коде приложения, мы можем использовать экспортер, который будет транслировать метрики приложения или системы в формате доступном для чтения Prometheus.
+
+Настроим сбор метрик с докер-хоста. Для этого воспользуемся экспортером Node exporter. Экспортер будем так же запускать в контейнере, поэтому добавим его как сервис в docker-compose файл.
+
+В конфиг прометеуса (prometheus.yml) добавим еще одну джобу, что бы прометеус следил за экспортером
+```
+scrape_configs:
+...
+  - job_name: 'node'
+    static_configs:
+      - targets:
+        - 'node-exporter:9100'
+```
+И пересоберем контейнер с прометеусом:
+```
+export USER_NAME=sjotus
+cd monitoring/prometheus && docker build -t $USER_NAME/prometheus .
+```
+
+https://cloud.docker.com/u/warrion08/repository/docker/warrion08/
