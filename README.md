@@ -7,6 +7,7 @@ warrion08 microservices repository
 - ### Docker.Сети. Docker-Comprose (#ДЗ №14)
 - ### Устройство Gitlab CI. Построение процесса непрерывной поставки (#ДЗ №15)
 - ### Введение в мониторинг. Системы мониторинга (#ДЗ №16)
+- ### Мониторинг приложения и инфраструктуры (#ДЗ №17)
 
 
 #### Технология контейнеризации. Ввдение в Docker(#ДЗ №12)
@@ -385,8 +386,45 @@ scrape_configs:
 ```
 И пересоберем контейнер с прометеусом:
 ```
-export USER_NAME=sjotus
+export USER_NAME=warrion08
 cd monitoring/prometheus && docker build -t $USER_NAME/prometheus .
 ```
 
 https://cloud.docker.com/u/warrion08/repository/docker/warrion08/
+
+#### Мониторинг приложения и инфраструктуры (#ДЗ №17)
+
+#### Подготовка окружения
+```
+$ export GOOGLE_PROJECT=_ваш-проект_
+$ docker-machine create --driver google \
+--google-machine-image
+https://www.googleapis.com/compute/v1/projects/ubuntu-oscloud/global/images/family/ubuntu-1604-lts \
+--google-machine-type n1-standard-1 \
+--google-zone europe-west1-b \
+docker-host
+...
+Docker is up and running!
+To see how to connect your Docker Client to the Docker Engine running on this
+virtual machine, run: docker-machine env docker-host
+$ eval $(docker-machine env docker-host)
+# узнаем IP адрес
+$ docker-machine ip docker-host
+```
+Разделил файл docker-compose.yml на два файла:
+docker-compose.yml - описание приложения
+docker-composemonitoring.yml - описание мониторинга приложения
+Для запуска приложений используем `docker-compose up -d`, а для мониторинга - `docker-compose -f docker-compose-monitoring.yml up -d`
+
+#### cAdvisor
+Используется для мониторинга состояния докер контейнеров
+На Web UI cAdvisor можно попасть по адресу `http://<dockermachine-host-ip>:8080`
+Метрики для Prometheus `http://<dockermachine-host-ip>:8080/metrics`
+
+#### Grafana
+Используется для визуализации данных из Prometheus
+На Web UI можно попасть по адресу `http://<dockermachine-host-ip>:3000`
+Дашборды можно сделать самому или скачать `https://grafana.com/grafana/dashboards`
+
+#### Alertmanager
+Дополнительный компонент для системы мониторинга Prometheus, который отвечает за первичную обработку алертов и дальнейшую отправку оповещений по заданному назначению.
