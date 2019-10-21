@@ -1,0 +1,45 @@
+version: '3'
+services:
+  fluentd:
+    image: ${USERNAME}/fluentd
+    networks:
+      - back_net
+      - front_net
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+
+  elasticsearch:
+    image: elasticsearch:7.3.2
+    environment:
+     - node.name=elasticsearch
+     - discovery.type=single-node
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    networks:
+      - back_net
+      - front_net
+    expose:
+      - 9200
+    ports:
+      - "9200:9200"
+
+  kibana:
+    image: kibana:7.3.2
+    container_name: kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+
+networks:
+  back_net:
+    ipam:
+      config:
+        - subnet: "10.0.2.0/24"
+  front_net:
+    ipam:
+      config:
+        - subnet: "10.0.1.0/24"
