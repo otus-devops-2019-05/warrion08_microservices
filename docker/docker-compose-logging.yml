@@ -1,0 +1,67 @@
+version: '3.3'
+services:
+  fluentd:
+    image: ${USERNAME}/fluentd:logging
+    ports:
+      - "24224:24224"
+      - "24224:24224/udp"
+    networks:
+      - back_net
+      - front_net
+
+  zipkin:
+    image: openzipkin/zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - front_net
+      - back_net
+
+  elasticsearch:
+    image: elasticsearch:7.3.2
+    container_name: elasticsearch
+    environment:
+#     - node.name=elasticsearch
+#     - cluster.initial_master_nodes=elasticsearch
+     - discovery.type=single-node
+     - ZIPKIN_ENABLED=${ZIPKIN_ENABLED}
+#     - cluster.name=docker-cluster
+#     - bootstrap.memory_lock=true
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
+    expose:
+      - 9200
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - back_net
+      - front_net
+
+  kibana:
+    image: kibana:7.3.2
+    container_name: kibana
+#    environment:
+#      XPACK_SECURITY_ENABLED: "false"
+#      ELASTICSEARCH_HOSTS: http://localhost:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - back_net
+      - front_net
+
+volumes:
+  elasticsearch-data:
+
+networks:
+  back_net:
+    ipam:
+      config:
+        - subnet: "10.0.2.0/24"
+  front_net:
+    ipam:
+      config:
+        - subnet: "10.0.1.0/24"
